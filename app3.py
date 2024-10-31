@@ -23,6 +23,7 @@ def get_kintone_records():
     querystring = {
         "app": app_id,
         "fields": [
+            "record_id",
             "staff_number",
             "name",
             "staff_address",
@@ -38,6 +39,26 @@ def get_kintone_records():
 
     records = response.json().get("records", [])
     return records
+
+
+def update_kintone_record(record_id, distance_km):
+    url = f"https://{subdomain}.cybozu.com/k/v1/record.json"
+    headers = {"X-Cybozu-API-Token": api_token, "Content-Type": "application/json"}
+
+    data = {
+        "app": app_id,
+        "id": record_id,
+        "record": {
+            "distance": {"value": distance_km},
+        },
+    }
+
+    response = requests.put(url, headers=headers, json=data)
+
+    if response.status_code == 200:
+        print("データを正常に更新できました", response.status_code)
+    else:
+        print("データを正常に更新できませんでした", response.status_code)
 
 
 # SearchAPIで住所情報を取得し、緯度経度を返す
@@ -87,20 +108,23 @@ def is_empty(value):
 
 
 def main():
-    print(os.getenv("MAPFAN_API"))
+    # print(os.getenv("MAPFAN_API"))
     records = get_kintone_records()
     if records:
         for record in records:
             staff_address = record.get("staff_address", {}).get("value", "")
             office_address = record.get("office_address", {}).get("value", "")
-
+            record_id = record.get("record_id", {}).get("value", "")
             staff_lon_lat, search_remaining = search_address(staff_address)
             office_lon_lat, search_remaining = search_address(office_address)
             totalDistance, route_remaining = select_route(staff_lon_lat, office_lon_lat)
 
             distance_km = round(totalDistance / 1000, 1)
 
-            print(distance_km)
+            # print(distance_km)
+
+            update_kintone_record(record_id, distance_km)
+
     else:
         print("レコードが見つかりません")
 
